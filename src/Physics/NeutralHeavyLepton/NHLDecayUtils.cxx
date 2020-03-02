@@ -29,6 +29,7 @@ string genie::utils::nhl::AsString(NHLDecayMode_t nhldm)
 //
   case(kNHLDcyTEST):
   return "N -> e+e-";
+  std::cout<< " checks "<<std::endl ;
 
   }
   return "Invalid HL decay mode!";
