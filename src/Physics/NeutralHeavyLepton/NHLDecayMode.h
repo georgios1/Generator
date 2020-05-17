@@ -37,8 +37,14 @@ namespace genie {
    // ...
    // ...
 
-   kNHLDcyTEST = 1
-
+   kNHLDcEENu = 1 ,
+   kNHLDcMuENu,
+   kNHLDcEMuNu,
+   kNHLDcMuMuNu,
+   kNHLDcPiE, 
+   kNHLDcPiMu,
+   kNHLDcKE, 
+   kNHLDcKMu
 
  } NHLDecayMode_t;
 

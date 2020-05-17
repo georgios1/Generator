@@ -27,12 +27,35 @@ string genie::utils::nhl::AsString(NHLDecayMode_t nhldm)
 // add all other cases and specify a string for the decay channel
 //
 //
-  case(kNHLDcyTEST):
-  return "N -> e+e-";
+  case(kNHLDcEENu):
+  return "N -> nu e+ e-";
   std::cout<< " checks "<<std::endl ;
 
+  case(kNHLDcMuENu):
+  return "N -> nu e+ mu- ";
+
+  case(kNHLDcEMuNu): 
+  return "N -> nu mu+ e-";
+
+  case(kNHLDcMuMuNu): 
+  return "N -> nu mu+ mu-"; 
+  
+  case(kNHLDcPiE): 
+  return "N -> pi+ e-"; 
+  
+  case(kNHLDcPiMu):
+  return "N -> pi+mu-";
+ 
+  case(kNHLDcKE): 
+  return "N -> K+ e-"; 
+ 
+  case(kNHLDcKMu):
+  return "N -> K+ mu-";
+  
+  
+
   }
-  return "Invalid HL decay mode!";
+  return "Invalid NHL decay mode!";
 }
 //____________________________________________________________________________
 bool genie::utils::nhl::IsKinematicallyAllowed(NHLDecayMode_t nhldm, double M)
@@ -78,11 +101,50 @@ PDGCodeList genie::utils::nhl::DecayProductList(NHLDecayMode_t nhldm)
   //     decay_products.push_back(... some other particle PDG code);
   //     break;
   //
-  case(kNHLDcyTEST):
+  case(kNHLDcEENu):
+    decay_products.push_back(kPdgNuE);
     decay_products.push_back(kPdgPositron);
     decay_products.push_back(kPdgElectron);
     break;
 
+  case(kNHLDcMuENu):
+    decay_products.push_back(kPdgNuE);
+    decay_products.push_back(kPdgPositron);
+    decay_products.push_back(kPdgMuon);
+    break;
+
+  case(kNHLDcEMuNu): 
+    decay_products.push_back(kPdgNuMu);
+    decay_products.push_back(kPdgAntiMuon);
+    decay_products.push_back(kPdgElectron);
+    break ;
+  case(kNHLDcMuMuNu):
+    decay_products.push_back(kPdgNuMu);
+    decay_products.push_back(kPdgAntiMuon);
+    decay_products.push_back(kPdgMuon);
+    break ;
+
+  
+  case(kNHLDcPiE): 
+    decay_products.push_back(kPdgPiP);
+    decay_products.push_back(kPdgElectron);
+    break;
+
+  case(kNHLDcPiMu): 
+    decay_products.push_back(kPdgPiP);
+    decay_products.push_back(kPdgMuon);
+    break;
+
+  case(kNHLDcKE): 
+    decay_products.push_back(kPdgKP);
+    decay_products.push_back(kPdgElectron);
+    break;
+ 
+  case(kNHLDcKMu):
+    decay_products.push_back(kPdgKM);
+    decay_products.push_back(kPdgMuon);
+    break;
+ 
   default :
     break;
   }
