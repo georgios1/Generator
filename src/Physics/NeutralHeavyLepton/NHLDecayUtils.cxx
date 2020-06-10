@@ -44,15 +44,45 @@ string genie::utils::nhl::AsString(NHLDecayMode_t nhldm)
   return "N -> pi+ e-"; 
   
   case(kNHLDcPiMu):
-  return "N -> pi+mu-";
+  return "N -> mu- pi+";
  
   case(kNHLDcKE): 
-  return "N -> K+ e-"; 
+  return "N -> e- K+"; 
  
   case(kNHLDcKMu):
-  return "N -> K+ mu-";
+  return "N -> mu- K+";
   
-  
+  case(kNHLDcPi0Nu):
+  return "N -> nu Pi0";
+
+// New part 
+
+  case(kNHLDcRho0Nu):
+  return "N -> nu Rho0" ; 
+
+  case(kNHLDcRhoE):
+  return "N -> e- Rho+"; 
+
+  case(kNHLDcOmegaNu): 
+  return "N -> nu Omega" ; 
+
+  case(kNHLDcRhoMu):
+  return "N -> mu- Rho+" ; 
+ 
+  case(kNHLDcPhiNu):
+  return "N -> nu Phi"; 
+
+  case(kNHLDcTauENu): 
+  return "N -> nu e+ tau-"
+ 
+  case(kNHLDcDE): 
+  return "N-> D+ e-"; 
+
+  case(kNHLDcTauMuNu): 
+  return "N -> tau- mu+ nu";
+
+  case(kNHLDcPiTau): 
+  return "N -> Pi+ tau-";  
 
   }
   return "Invalid NHL decay mode!";
@@ -144,6 +174,53 @@ PDGCodeList genie::utils::nhl::DecayProductList(NHLDecayMode_t nhldm)
     decay_products.push_back(kPdgKM);
     decay_products.push_back(kPdgMuon);
     break;
+
+  case(kNHLDcRho0Nu):
+    decay_products.push_back(kPdgRho0);
+    decay_products.push_back(kPdgNuMu);
+    break; 
+
+  case(kNHLDcRhoE):
+    decay_products.push_back(kPdgRhoP);
+    decay_products.push_back(kPdgElectron);
+    break; 
+
+  case(kNHLDcOmegaNu):
+    decay_products.push_back(kPdgomega);
+    decay_products.push_back(kPdgNuMu);
+    break; 
+  
+  case(kNHLDcRhoMu):
+    decay_products.push_back(kPdgRhoP);
+    decay_products.push_back(kPdgMuon);
+    break; 
+
+  case(kNHLDcPhiNu):
+    decay_products.push_back(kPdgPhi);
+    decay_products.push_back(kPdgNuMu);
+    break; 
+
+  case(kNHLDcTauENu):
+    decay_products.push_back(kPdgTau);
+    decay_products.push_back(kPdgElectron);
+    decay_products.push_back(kPdgNuE);
+    break; 
+
+  case(kNHLDcDE):
+    decay_products.push_back(kPdgDP);
+    decay_products.push_back(kPdgElectron);
+    break; 
+
+  case(kNHLDcTauMuNu):
+    decay_products.push_back(kPdgTau);
+    decay_products.push_back(kPdgMuon);
+    decay_products.push_back(kPdgNuMu);
+    break; 
+
+  case(kNHLDcPiTau):
+    decay_products.push_back(kPdgPiP);
+    decay_products.push_back(kPdgTau);
+    break; 
  
   default :
     break;

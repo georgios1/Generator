@@ -52,7 +52,7 @@ void NHLPrimaryVtxGenerator::ProcessEventRecord(GHepRecord * event) const
   Interaction * interaction = event->Summary();
 
   fCurrDecayMode = (NHLDecayMode_t) interaction->ExclTag().DecayMode();
-
+  //Add here also particle or Anti particle. , Dirac or Majorana. 
   LOG("NHL", pNOTICE)
     << "Simulating NHL decay " << utils::nhl::AsString(fCurrDecayMode);
 
@@ -77,7 +77,7 @@ void NHLPrimaryVtxGenerator::AddInitialState(GHepRecord * event) const
 void NHLPrimaryVtxGenerator::GenerateDecayProducts(GHepRecord * event) const
 {
   LOG("NHL", pINFO) << "Generating decay...";
-
+  // ADD here the needed argruments , Particle , Anti Particle , Dirac or Majorana
   PDGCodeList pdgv = utils::nhl::DecayProductList(fCurrDecayMode);
   LOG("NHL", pINFO) << "Decay product IDs: " << pdgv;
   assert ( pdgv.size() >  1);

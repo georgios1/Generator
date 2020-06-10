@@ -44,7 +44,17 @@ namespace genie {
    kNHLDcPiE, 
    kNHLDcPiMu,
    kNHLDcKE, 
-   kNHLDcKMu
+   kNHLDcKMu, 
+   // new : 
+   kNHLDcRho0Nu,
+   kNHLDcRhoE, 
+   kNHLDcOmegaNu, 
+   kNHLDcRhoMu,
+   kNHLDcPhiNu, 
+   kNHLDcTauENu, 
+   kNHLDcDE,
+   kNHLDcTauMuNu, 
+   kNHLDcPiTau
 
  } NHLDecayMode_t;
 

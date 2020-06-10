@@ -199,6 +199,7 @@ const int kPdgDarkMatter      =  2000010000; // Dark matter particle for GENIE B
 const int kPdgAntiDarkMatter  = -2000010000; // Dark matter particle for GENIE Boosted Dark Matter mode
 const int kPdgMediator        =  2000010001; // Mediator particle for GENIE Boosted Dark Matter mode
 const int kPdgNHL             =  2000020000; // Neutral Heavy Lepton PDG code
+const int kPdgAntiNHL         =  -2000020000; // Neutral Heavy Lepton PDG code
 
 //
 // PDG codes for special particles used by external generators interfaced with GENIE
