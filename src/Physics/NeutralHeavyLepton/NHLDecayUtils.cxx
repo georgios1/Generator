@@ -73,7 +73,7 @@ string genie::utils::nhl::AsString(NHLDecayMode_t nhldm)
   return "N -> nu Phi"; 
 
   case(kNHLDcTauENu): 
-  return "N -> nu e+ tau-"
+  return "N -> nu e+ tau-";
  
   case(kNHLDcDE): 
   return "N-> D+ e-"; 

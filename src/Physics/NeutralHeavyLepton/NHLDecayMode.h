@@ -45,6 +45,7 @@ namespace genie {
    kNHLDcPiMu,
    kNHLDcKE, 
    kNHLDcKMu, 
+   kNHLDcPi0Nu,
    // new : 
    kNHLDcRho0Nu,
    kNHLDcRhoE, 
