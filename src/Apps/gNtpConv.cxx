@@ -237,7 +237,8 @@ int main(int argc, char ** argv)
   GHepRecord::SetPrintLevel(RunOpt::Instance()->EventRecordPrintLevel());
 
   PDGLibrary::Instance()->AddDarkMatter( 1.0, 0.5 ) ;
-  
+  PDGLibrary::Instance()->AddNHL(1.0);
+
   // Call the appropriate conversion function
   switch(gOptOutFileFormat) {
 
