@@ -95,6 +95,10 @@
 #include <sstream>
 
 #include <TSystem.h>
+#include <TTree.h>
+#include <TFile.h>
+#include <TH1D.h>
+#include <TH1F.h>
 #include <TGeoVolume.h>
 #include <TGeoManager.h>
 #include <TGeoShape.h>
@@ -142,8 +146,10 @@ string          kDefOptEvFilePrefix = "gntp";
 //
 Long_t           gOptRunNu        = 1000;                // run number
 int              gOptNev          = 10;                  // number of events to generate
-double           gOptEnergyNHL    = -1;                  // NHL mass
+double           gOptEnergyNHL    = -1;                  // NHL Energy
 double           gOptMassNHL      = -1;                  // NHL mass
+TH1F             *gOptFluxHst     = nullptr ;                     // HNL flux histogram
+bool             gOptUsingHistFlux= false ;               // using Energy flux format
 NHLDecayMode_t   gOptDecayMode    = kNHLDcyNull;         // NHL decay mode
 string           gOptEvFilePrefix = kDefOptEvFilePrefix; // event file prefix
 bool             gOptUsingRootGeom = false;              // using root geom or target mix?
@@ -193,10 +199,16 @@ int main(int argc, char ** argv)
   while (1)
   {
      if(ievent == gOptNev) break;
-
+     
      LOG("gevgen_nhl", pNOTICE)
           << " *** Generating event............ " << ievent;
-
+     // random energy from the  comes here.
+      
+      
+      if (gOptFluxHst == nullptr) {std::cout<< "nullptr" << std::endl;
+          break ;}
+     std::cout<< gOptFluxHst->GetEntries() << std::endl ;
+     gOptEnergyNHL = gOptFluxHst->GetRandom();
      EventRecord * event = new EventRecord;
      // int target = SelectInitState();
      int decay  = (int)gOptDecayMode;
@@ -359,7 +371,7 @@ void GetCommandLineArgs(int argc, char ** argv)
 
   // NHL energy (temporary - will disappear once we add an option to read a flux)
   gOptEnergyNHL = -1;
-  if( parser.OptionExists('E') ) {
+  /*if( parser.OptionExists('E') ) {
     LOG("gevgen_nhl", pDEBUG)
         << "Reading NHL energy";
     gOptEnergyNHL = parser.ArgAsDouble('E');
@@ -369,8 +381,36 @@ void GetCommandLineArgs(int argc, char ** argv)
     PrintSyntax();
     exit(0);
   } //-E
-  assert(gOptEnergyNHL > gOptMassNHL);
-
+  */
+    
+//*******************************
+    
+  if( parser.OptionExists('f') ) {
+     LOG("gevgen_nhl", pDEBUG) << "Getting input flux";
+     string flux = parser.ArgAsString('f');
+     TFile flux_file(flux.c_str());
+     string alpha = "mass_0.31309_U_1e-05" ;
+     //TH1F *h = (TH1F*)flux_file.Get(alpha.c_str());
+     gOptFluxHst = (TH1F*)flux_file.Get("mass_0.31309_U_1e-05");
+     if ( gOptFluxHst == nullptr){
+          std::cout << "histogram not found , please enter a valid histogram" << std::endl ;
+          exit(0);
+     }
+      std::cout << gOptFluxHst->GetEntries() << std::endl ;
+      std::cout << "it works" << std::endl ;
+            
+  } else {
+    LOG("gevgen_nhl", pFATAL)
+        << "You need to specify the NHL spectrum flux";
+    PrintSyntax();
+    exit(1);
+  }
+  //assert(gOptEnergyNHL > gOptMassNHL);
+      
+      
+//*******************************
+      
+      
   // NHL decay mode
   int mode = -1;
   if( parser.OptionExists('m') ) {
