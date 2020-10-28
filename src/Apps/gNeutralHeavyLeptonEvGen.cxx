@@ -197,68 +197,74 @@ int main(int argc, char ** argv)
   const EventRecordVisitorI * mcgen = NHLGenerator();
 
   TH1D * spectrum = 0;
+  double evnorm = 1.0;
+  if(gOptUsingFlux){
+    vector<string> fv = utils::str::Split(gOptFlux,",");
+    assert(fv.size()==2);
+    assert( !gSystem->AccessPathName(fv[0].c_str()) );
+    
+    LOG("gevgen_nhl", pNOTICE) << "Getting input flux from root file: " << fv[0];
+    TFile * flux_file = new TFile(fv[0].c_str(),"read");
 
-  vector<string> fv = utils::str::Split(gOptFlux,",");
-  assert(fv.size()==2);
-  assert( !gSystem->AccessPathName(fv[0].c_str()) );
-
-  LOG("gevgen_nhl", pNOTICE) << "Getting input flux from root file: " << fv[0];
-  TFile * flux_file = new TFile(fv[0].c_str(),"read");
-
-  LOG("gevgen_nhl", pNOTICE) << "Flux name: " << fv[1];
-  TH1D * hst = (TH1D *)flux_file->Get(fv[1].c_str());
-  assert(hst);
-
-  LOG("gevgen_nhl", pNOTICE) << hst->GetEntries();
-
-  // Copy in the flux histogram from the root file and remove bins outside the emin,emax range
-  spectrum = (TH1D*)hst->Clone();
-  spectrum->SetNameTitle("spectrum","neutrino_flux");
-  spectrum->SetDirectory(0);
-
-  LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
-
-  flux_file->Close();
-  delete flux_file;
-
-  LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
+    LOG("gevgen_nhl", pNOTICE) << "Flux name: " << fv[1];
+    TH1D * hst = (TH1D *)flux_file->Get(fv[1].c_str());
+    assert(hst);
+    
+    LOG("gevgen_nhl", pNOTICE) << hst->GetEntries();
+    
+    // Copy in the flux histogram from the root file and remove bins outside the emin,emax range
+    spectrum = (TH1D*)hst->Clone();
+    spectrum->SetNameTitle("spectrum","neutrino_flux");
+    spectrum->SetDirectory(0);
+    
+    LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
+    
+    flux_file->Close();
+    delete flux_file;
+    
+    LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
+    evnorm = gOptBrRatio*spectrum->Integral()/gOptNev;
+    LOG("gevgen_nhl", pINFO) << " Expected events = " << spectrum->Integral();
+  }
 
   // Event loop
   int ievent = 0;
   while (1)
   {
-     if(ievent == gOptNev) break;
+    if(ievent == gOptNev) break;
      
-     LOG("gevgen_nhl", pNOTICE) << " *** Generating event............ " << ievent;
-     // random energy from the  comes here.
-      
-     if(gOptUsingFlux){
-       gOptEnergyNHL = spectrum->GetRandom();
-       LOG("gevgen_nhl", pNOTICE) << " Generated energy = " << gOptEnergyNHL;
-     }
-
-     EventRecord * event = new EventRecord;
-     // int target = SelectInitState();
-     Interaction * interaction = Interaction::NHL(gOptEnergyNHL, gOptDecayMode);
-     event->AttachSummary(interaction);
-
-     // Simulate decay
-     mcgen->ProcessEventRecord(event);
-
-     // Generate a position within the geometry bounding box
-     TLorentzVector x4 = GeneratePosition();
-     event->SetVertex(x4);
-
-     LOG("gevgen_nhl", pINFO) << "Generated event: " << *event;
-
-     // Add event at the output ntuple, refresh the mc job monitor & clean-up
-     ntpw.AddEventRecord(ievent, event);
-     mcjmonitor.Update(ievent,event);
-     delete event;
-
-     ievent++;
+    LOG("gevgen_nhl", pNOTICE) << " *** Generating event............ " << ievent;
+    
+    if(spectrum){
+      gOptEnergyNHL = spectrum->GetRandom();
+      assert(gOptEnergyNHL > gOptMassNHL);
+      LOG("gevgen_nhl", pNOTICE) << " Generated energy = " << gOptEnergyNHL;
+    }
+    
+    EventRecord * event = new EventRecord;
+    // int target = SelectInitState();
+    Interaction * interaction = Interaction::NHL(gOptEnergyNHL, gOptDecayMode);
+    event->AttachSummary(interaction);
+    
+    // Simulate decay
+    mcgen->ProcessEventRecord(event);
+    
+    // Generate a position within the geometry bounding box
+    TLorentzVector x4 = GeneratePosition();
+    LOG("gevgen_nhl", pINFO) << "Vertex position (X-Y-Z): " << x4.X() << "," << x4.Y() << "," << x4.Z();
+    event->SetVertex(x4);
+    event->SetWeight(evnorm);
+    
+    LOG("gevgen_nhl", pINFO) << "Generated event: " << *event;
+    
+    // Add event at the output ntuple, refresh the mc job monitor & clean-up
+    ntpw.AddEventRecord(ievent, event);
+    mcjmonitor.Update(ievent,event);
+    delete event;
+    
+    ievent++;
   } // event loop
-
+  
   // Save the generated event tree & close the output file
   ntpw.Save();
 
@@ -271,7 +277,7 @@ int main(int argc, char ** argv)
 //_________________________________________________________________________________________
 void InitBoundingBox(void)
 {
-// Initialise geometry bounding box, used for generating NHL vertex positions
+  // Initialise geometry bounding box, used for generating NHL vertex positions
 
   fdx = 0; // half-length - x
   fdy = 0; // half-length - y
@@ -290,24 +296,31 @@ void InitBoundingBox(void)
   }
 
   TGeoManager * gm = TGeoManager::Import(gOptRootGeom.c_str());
-  TGeoVolume * top_volume = gm->GetTopVolume();
-  TGeoShape * ts  = top_volume->GetShape();
-  TGeoBBox *  box = (TGeoBBox *)ts;
+  TGeoVolume * top_volume = gm->GetVolume(gOptRootGeomTopVol.c_str()); // gm->GetTopVolume();
+
   //get box origin and dimensions (in the same units as the geometry)
-  fdx = box->GetDX(); // half-length
-  fdy = box->GetDY(); // half-length
-  fdz = box->GetDZ(); // half-length
-  fox = (box->GetOrigin())[0];
-  foy = (box->GetOrigin())[1];
-  foz = (box->GetOrigin())[2];
+  fdz = ((TGeoBBox*)top_volume->GetShape())->GetDZ(); // half-length
+  fdy = ((TGeoBBox*)top_volume->GetShape())->GetDY(); // half-length
+  fdx = ((TGeoBBox*)top_volume->GetShape())->GetDX(); // half-length
+
+  const double *origin = ((TGeoBBox*)top_volume->GetShape())->GetOrigin();
+  fox = origin[0];
+  foy = origin[1];
+  foz = origin[2];
+
+  top_volume->Dump();
 
   // Convert from local to SI units
-  fdx *= gOptGeomLUnits;
-  fdy *= gOptGeomLUnits;
-  fdz *= gOptGeomLUnits;
-  fox *= gOptGeomLUnits;
-  foy *= gOptGeomLUnits;
-  foz *= gOptGeomLUnits;
+  //fdx *= gOptGeomLUnits;
+  //fdy *= gOptGeomLUnits;
+  //fdz *= gOptGeomLUnits;
+  //fox *= gOptGeomLUnits;
+  //foy *= gOptGeomLUnits;
+  //foz *= gOptGeomLUnits;
+
+  LOG("gevgen_nhl", pINFO) << "Volume " << top_volume->GetName() << " origin X-Y-Z: " << fox  <<  "-" << foy   << "-" << foz;
+  LOG("gevgen_nhl", pINFO) << "Volume " << top_volume->GetName() << " length X-Y-Z: " << 2*fdx << "-" << 2*fdy << "-" << 2*fdz;
+
 }
 //_________________________________________________________________________________________
 TLorentzVector GeneratePosition(void)
@@ -469,8 +482,7 @@ void GetCommandLineArgs(int argc, char ** argv)
   } //-g
 
   if(gOptUsingRootGeom) {
-     // using a ROOT geometry - get requested geometry units
-
+     // using a ROOT/HTML geometry - get requested geometry units
      // legth units:
      if( parser.OptionExists('L') ) {
         LOG("gevgen_nhl", pDEBUG)
@@ -528,7 +540,7 @@ void GetCommandLineArgs(int argc, char ** argv)
 
   ostringstream gminfo;
   if (gOptUsingRootGeom) {
-    gminfo << "Using ROOT geometry - file: " << gOptRootGeom
+    gminfo << "Using geometry file: " << gOptRootGeom
            << ", top volume: "
            << ((gOptRootGeomTopVol.size()==0) ? "<master volume>" : gOptRootGeomTopVol)
            << ", length  units: " << lunits;
