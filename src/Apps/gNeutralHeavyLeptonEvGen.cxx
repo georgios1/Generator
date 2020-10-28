@@ -8,20 +8,21 @@
          *** Synopsis :
 
          gevgen_nhl [-h]
-                   [-r run#]
+                    [-r run#]
                     -n n_of_events
                     -E nhl_energy (temporary)
                     --mass nhl_mass
                     -m decay_mode
                     -f nhl_flux
-		   [-g geometry]
-                   [-L geometry_length_units]
-                   [-t geometry_top_volume_name]
-                   [-o output_event_file_prefix]
-                   [--seed random_number_seed]
-                   [--message-thresholds xml_file]
-                   [--event-record-print-level level]
-                   [--mc-job-status-refresh-rate  rate]
+		    [-b branching ratio]
+		    [-g geometry]
+                    [-L geometry_length_units]
+                    [-t geometry_top_volume_name]
+                    [-o output_event_file_prefix]
+                    [--seed random_number_seed]
+                    [--message-thresholds xml_file]
+                    [--event-record-print-level level]
+                    [--mc-job-status-refresh-rate  rate]
 
          *** Options :
 
@@ -39,13 +40,13 @@
               NHL decay mode ID:
            -f
               Input NHL flux.
-              *** not implemented for gevgen_nhl yet ***
+	   -b
+              Branching ratio of the decay mode   
            -g
               Input detector geometry.
-              *** not implemented for gevgen_nhl yet ***
               If a geometry is specified, NHL decay vertices will be distributed
               in the desired detector volume.
-              Using this argument, you can pass a ROOT file containing your
+              Using this argument, you can pass a ROOT/HTML file containing your
               detector geometry description.
            -L
               Input geometry length units, eg 'm', 'cm', 'mm', ...
@@ -138,25 +139,26 @@ TLorentzVector GeneratePosition(void);
 const EventRecordVisitorI * NHLGenerator(void);
 
 //
-string          kDefOptGeomLUnits   = "mm";    // default geometry length units
-string          kDefOptGeomDUnits   = "g_cm3"; // default geometry density units
-NtpMCFormat_t   kDefOptNtpFormat    = kNFGHEP; // default event tree format
+string          kDefOptGeomLUnits   = "mm";                // default geometry length units
+string          kDefOptGeomDUnits   = "g_cm3";             // default geometry density units
+NtpMCFormat_t   kDefOptNtpFormat    = kNFGHEP;             // default event tree format
 string          kDefOptEvFilePrefix = "gntp";
 
 //
-Long_t           gOptRunNu        = 1000;                // run number
-int              gOptNev          = 10;                  // number of events to generate
-double           gOptEnergyNHL    = -1;                  // NHL Energy
-double           gOptMassNHL      = -1;                  // NHL mass
-NHLDecayMode_t   gOptDecayMode    = kNHLDcyNull;         // NHL decay mode
-string           gOptEvFilePrefix = kDefOptEvFilePrefix; // event file prefix
-bool             gOptUsingRootGeom = false;              // using root geom or target mix?
-string           gOptRootGeom;                           // input ROOT file with realistic detector geometry
-string           gOptRootGeomTopVol = "";                // input geometry top event generation volume
-double           gOptGeomLUnits = 0;                     // input geometry length units
-long int         gOptRanSeed = -1;                       // random number seed
-string           gOptFlux;                               //
-bool             gOptUsingFlux;                          //
+Long_t           gOptRunNu          = 1000;                // run number
+int              gOptNev            = 10;                  // number of events to generate
+double           gOptEnergyNHL      = -1;                  // NHL Energy
+double           gOptMassNHL        = -1;                  // NHL mass
+NHLDecayMode_t   gOptDecayMode      = kNHLDcyNull;         // NHL decay mode
+string           gOptEvFilePrefix   = kDefOptEvFilePrefix; // event file prefix
+bool             gOptUsingRootGeom  = false;               // using root geom or target mix?
+string           gOptRootGeom;                             // input ROOT file with realistic detector geometry
+string           gOptRootGeomTopVol = "";                  // input geometry top event generation volume
+double           gOptGeomLUnits     = 0;                   // input geometry length units
+long int         gOptRanSeed        = -1;                  // random number seed
+string           gOptFlux;                                 //
+bool             gOptUsingFlux;                            //
+double           gOptBrRatio        = 1;                   //
  
 // Geometry bounding box and origin - read from the input geometry file (if any)
 double fdx = 0; // half-length - x
@@ -435,6 +437,15 @@ void GetCommandLineArgs(int argc, char ** argv)
     exit(0);
   }
 
+  if( parser.OptionExists('b') ) {
+    LOG("gevgen_nhl", pDEBUG) << "Reading NHL decay mode branching ratio";
+    gOptBrRatio = parser.ArgAsInt('m');
+  }
+  else {
+    LOG("gevgen_nhl", pDEBUG) << "You didn't specify the decay mode branching ratio, will use the default (1)";
+    gOptBrRatio = 1;
+  } //-b
+
   //
   // geometry
   //
@@ -447,17 +458,14 @@ void GetCommandLineArgs(int argc, char ** argv)
     geom = parser.ArgAsString('g');
 
     // is it a ROOT file that contains a ROOT geometry?
-    bool accessible_geom_file =
-            ! (gSystem->AccessPathName(geom.c_str()));
+    bool accessible_geom_file =! (gSystem->AccessPathName(geom.c_str()));
     if (accessible_geom_file) {
       gOptRootGeom      = geom;
       gOptUsingRootGeom = true;
+    } else {
+      LOG("gevgen_nhl", pFATAL) << "The geometry provided is not accessible - Exiting!";
+      exit(1);
     }
-  } else {
-      // LOG("gevgen_nhl", pFATAL)
-      //   << "No geometry option specified - Exiting";
-      // PrintSyntax();
-      // exit(1);
   } //-g
 
   if(gOptUsingRootGeom) {
@@ -550,6 +558,7 @@ void PrintSyntax(void)
    << "\n             --mass nhl_mass"
    << "\n             -m decay_mode"
    << "\n             -f flux"
+   << "\n            [ -b branching ratio]"
    << "\n            [-g geometry]"
    << "\n            [-t top_volume_name_at_geom]"
    << "\n            [-L length_units_at_geom]"
