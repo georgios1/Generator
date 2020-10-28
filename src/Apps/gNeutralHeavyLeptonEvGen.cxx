@@ -237,8 +237,7 @@ int main(int argc, char ** argv)
 
      EventRecord * event = new EventRecord;
      // int target = SelectInitState();
-     int decay  = (int)gOptDecayMode;
-     Interaction * interaction = Interaction::NHL(gOptEnergyNHL, decay);
+     Interaction * interaction = Interaction::NHL(gOptEnergyNHL, gOptDecayMode);
      event->AttachSummary(interaction);
 
      // Simulate decay
