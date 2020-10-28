@@ -233,9 +233,6 @@ int main(int argc, char ** argv)
      if(gOptUsingFlux){
        gOptEnergyNHL = spectrum->GetRandom();
        LOG("gevgen_nhl", pNOTICE) << " Generated energy = " << gOptEnergyNHL;
-       // NOTICE: We don't have the decays implemented yet. For now decay to default decay mode
-       int mode = 1;
-       gOptDecayMode = (NHLDecayMode_t) mode;
      }
 
      EventRecord * event = new EventRecord;
