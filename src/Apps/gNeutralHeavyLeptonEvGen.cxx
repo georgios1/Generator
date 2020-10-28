@@ -14,7 +14,7 @@
                     --mass nhl_mass
                     -m decay_mode
                     -f nhl_flux
-	                 [-g geometry]
+		   [-g geometry]
                    [-L geometry_length_units]
                    [-t geometry_top_volume_name]
                    [-o output_event_file_prefix]
@@ -148,8 +148,6 @@ Long_t           gOptRunNu        = 1000;                // run number
 int              gOptNev          = 10;                  // number of events to generate
 double           gOptEnergyNHL    = -1;                  // NHL Energy
 double           gOptMassNHL      = -1;                  // NHL mass
-TH1F             *gOptFluxHst     = nullptr ;                     // HNL flux histogram
-bool             gOptUsingHistFlux= false ;               // using Energy flux format
 NHLDecayMode_t   gOptDecayMode    = kNHLDcyNull;         // NHL decay mode
 string           gOptEvFilePrefix = kDefOptEvFilePrefix; // event file prefix
 bool             gOptUsingRootGeom = false;              // using root geom or target mix?
@@ -157,7 +155,9 @@ string           gOptRootGeom;                           // input ROOT file with
 string           gOptRootGeomTopVol = "";                // input geometry top event generation volume
 double           gOptGeomLUnits = 0;                     // input geometry length units
 long int         gOptRanSeed = -1;                       // random number seed
-
+string           gOptFlux;                               //
+bool             gOptUsingFlux;                          //
+ 
 // Geometry bounding box and origin - read from the input geometry file (if any)
 double fdx = 0; // half-length - x
 double fdy = 0; // half-length - y
@@ -194,21 +194,50 @@ int main(int argc, char ** argv)
   // Get the nucleon decay generator
   const EventRecordVisitorI * mcgen = NHLGenerator();
 
+  TH1D * spectrum = 0;
+
+  vector<string> fv = utils::str::Split(gOptFlux,",");
+  assert(fv.size()==2);
+  assert( !gSystem->AccessPathName(fv[0].c_str()) );
+
+  LOG("gevgen_nhl", pNOTICE) << "Getting input flux from root file: " << fv[0];
+  TFile * flux_file = new TFile(fv[0].c_str(),"read");
+
+  LOG("gevgen_nhl", pNOTICE) << "Flux name: " << fv[1];
+  TH1D * hst = (TH1D *)flux_file->Get(fv[1].c_str());
+  assert(hst);
+
+  LOG("gevgen_nhl", pNOTICE) << hst->GetEntries();
+
+  // Copy in the flux histogram from the root file and remove bins outside the emin,emax range
+  spectrum = (TH1D*)hst->Clone();
+  spectrum->SetNameTitle("spectrum","neutrino_flux");
+  spectrum->SetDirectory(0);
+
+  LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
+
+  flux_file->Close();
+  delete flux_file;
+
+  LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
+
   // Event loop
   int ievent = 0;
   while (1)
   {
      if(ievent == gOptNev) break;
      
-     LOG("gevgen_nhl", pNOTICE)
-          << " *** Generating event............ " << ievent;
+     LOG("gevgen_nhl", pNOTICE) << " *** Generating event............ " << ievent;
      // random energy from the  comes here.
       
-      
-      if (gOptFluxHst == nullptr) {std::cout<< "nullptr" << std::endl;
-          break ;}
-     std::cout<< gOptFluxHst->GetEntries() << std::endl ;
-     gOptEnergyNHL = gOptFluxHst->GetRandom();
+     if(gOptUsingFlux){
+       gOptEnergyNHL = spectrum->GetRandom();
+       LOG("gevgen_nhl", pNOTICE) << " Generated energy = " << gOptEnergyNHL;
+       // NOTICE: We don't have the decays implemented yet. For now decay to default decay mode
+       int mode = 1;
+       gOptDecayMode = (NHLDecayMode_t) mode;
+     }
+
      EventRecord * event = new EventRecord;
      // int target = SelectInitState();
      int decay  = (int)gOptDecayMode;
@@ -222,8 +251,7 @@ int main(int argc, char ** argv)
      TLorentzVector x4 = GeneratePosition();
      event->SetVertex(x4);
 
-     LOG("gevgen_nhl", pINFO)
-         << "Generated event: " << *event;
+     LOG("gevgen_nhl", pINFO) << "Generated event: " << *event;
 
      // Add event at the output ntuple, refresh the mc job monitor & clean-up
      ntpw.AddEventRecord(ievent, event);
@@ -235,6 +263,8 @@ int main(int argc, char ** argv)
 
   // Save the generated event tree & close the output file
   ntpw.Save();
+
+  delete spectrum;
 
   LOG("gevgen_nhl", pNOTICE) << "Done!";
 
@@ -344,91 +374,67 @@ void GetCommandLineArgs(int argc, char ** argv)
 
   // number of events
   if( parser.OptionExists('n') ) {
-    LOG("gevgen_nhl", pDEBUG)
-        << "Reading number of events to generate";
+    LOG("gevgen_nhl", pDEBUG) << "Reading number of events to generate";
     gOptNev = parser.ArgAsInt('n');
   } else {
-    LOG("gevgen_nhl", pFATAL)
-        << "You need to specify the number of events";
+    LOG("gevgen_nhl", pFATAL) << "You need to specify the number of events";
     PrintSyntax();
     exit(0);
   } //-n
 
+  // flux functional form
+  bool using_flux = false;
+  if( parser.OptionExists('f') ) {
+    LOG("gevgen", pDEBUG) << "Reading flux function";
+    gOptFlux = parser.ArgAsString('f');
+    using_flux = true;
+  } //-f
+
   // NHL mass
   gOptMassNHL = -1;
   if( parser.OptionExists("mass") ) {
-    LOG("gevgen_nhl", pDEBUG)
-        << "Reading NHL mass";
+    LOG("gevgen_nhl", pDEBUG) << "Reading NHL mass";
     gOptMassNHL = parser.ArgAsDouble("mass");
   } else {
-    LOG("gevgen_nhl", pFATAL)
-        << "You need to specify the NHL mass";
+    LOG("gevgen_nhl", pFATAL) << "You need to specify the NHL mass";
     PrintSyntax();
     exit(0);
   } //--mass
+
   PDGLibrary * pdglib = PDGLibrary::Instance();
   pdglib->AddNHL(gOptMassNHL);
 
-  // NHL energy (temporary - will disappear once we add an option to read a flux)
+  // NHL energy
   gOptEnergyNHL = -1;
-  /*if( parser.OptionExists('E') ) {
-    LOG("gevgen_nhl", pDEBUG)
-        << "Reading NHL energy";
+  if( parser.OptionExists('E') ) {
+    LOG("gevgen_nhl", pDEBUG) << "Reading NHL energy";
     gOptEnergyNHL = parser.ArgAsDouble('E');
   } else {
-    LOG("gevgen_nhl", pFATAL)
-        << "You need to specify the NHL energy";
-    PrintSyntax();
-    exit(0);
+    if(!using_flux){
+      LOG("gevgen_nhl", pFATAL) << "You need to specify the NHL energy";
+      PrintSyntax();
+      exit(0);
+    }
   } //-E
-  */
-    
-//*******************************
-    
-  if( parser.OptionExists('f') ) {
-     LOG("gevgen_nhl", pDEBUG) << "Getting input flux";
-     string flux = parser.ArgAsString('f');
-     TFile flux_file(flux.c_str());
-     string alpha = "mass_0.31309_U_1e-05" ;
-     //TH1F *h = (TH1F*)flux_file.Get(alpha.c_str());
-     gOptFluxHst = (TH1F*)flux_file.Get("mass_0.31309_U_1e-05");
-     if ( gOptFluxHst == nullptr){
-          std::cout << "histogram not found , please enter a valid histogram" << std::endl ;
-          exit(0);
-     }
-      std::cout << gOptFluxHst->GetEntries() << std::endl ;
-      std::cout << "it works" << std::endl ;
-            
-  } else {
-    LOG("gevgen_nhl", pFATAL)
-        << "You need to specify the NHL spectrum flux";
-    PrintSyntax();
-    exit(1);
-  }
+
+  gOptUsingFlux = using_flux;
+
   //assert(gOptEnergyNHL > gOptMassNHL);
-      
-      
-//*******************************
-      
       
   // NHL decay mode
   int mode = -1;
   if( parser.OptionExists('m') ) {
-    LOG("gevgen_nhl", pDEBUG)
-        << "Reading NHL decay mode";
+    LOG("gevgen_nhl", pDEBUG) << "Reading NHL decay mode";
     mode = parser.ArgAsInt('m');
   } else {
-    LOG("gevgen_nhl", pFATAL)
-        << "You need to specify the decay mode";
-    PrintSyntax();
-    exit(0);
+    LOG("gevgen_nhl", pDEBUG) << "You didn't specify the decay mode, will use the default (1)";
+    mode = 1;
   } //-m
   gOptDecayMode = (NHLDecayMode_t) mode;
 
   bool allowed = utils::nhl::IsKinematicallyAllowed(gOptDecayMode, gOptMassNHL);
   if(!allowed) {
-    LOG("gevgen_nhl", pFATAL)
-      << "Specified decay is not allowed kinematically for the given NHL mass";
+    LOG("gevgen_nhl", pFATAL) << "Specified decay is not allowed kinematically for the given NHL mass";
     PrintSyntax();
     exit(0);
   }
@@ -547,7 +553,7 @@ void PrintSyntax(void)
    << "\n             -E nhl_energy (temporary)"
    << "\n             --mass nhl_mass"
    << "\n             -m decay_mode"
-   << "\n             -f flux ** not installed yet **"
+   << "\n             -f flux"
    << "\n            [-g geometry]"
    << "\n            [-t top_volume_name_at_geom]"
    << "\n            [-L length_units_at_geom]"
