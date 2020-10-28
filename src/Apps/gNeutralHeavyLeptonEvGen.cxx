@@ -81,6 +81,12 @@
 \author  Costas Andreopoulos <constantinos.andreopoulos \at cern.ch>
          University of Liverpool & STFC Rutherford Appleton Laboratory
 
+\author  Georgios Christodoulou <georgios.christodoulou \at cern.ch>
+         University of Liverpool & CERN
+
+\author  Haifa Sfar <haifa.rejeb.sfar \at cern.ch>
+         University of Antwerp & CERN
+
 \created February 11, 2020
 
 \cpright Copyright (c) 2003-2020, The GENIE Collaboration
@@ -223,7 +229,7 @@ int main(int argc, char ** argv)
     delete flux_file;
     
     LOG("gevgen_nhl", pNOTICE) << spectrum->GetEntries();
-    evnorm = gOptBrRatio*spectrum->Integral()/gOptNev;
+    evnorm = spectrum->Integral()/gOptNev;
     LOG("gevgen_nhl", pINFO) << " Expected events = " << spectrum->Integral();
   }
 
@@ -254,6 +260,7 @@ int main(int argc, char ** argv)
     LOG("gevgen_nhl", pINFO) << "Vertex position (X-Y-Z): " << x4.X() << "," << x4.Y() << "," << x4.Z();
     event->SetVertex(x4);
     event->SetWeight(evnorm);
+    event->SetProbability(gOptBrRatio);
     
     LOG("gevgen_nhl", pINFO) << "Generated event: " << *event;
     
