@@ -110,6 +110,7 @@
 #include <TGeoManager.h>
 #include <TGeoShape.h>
 #include <TGeoBBox.h>
+#include <TGeoNode.h>
 
 #include "Framework/Algorithm/AlgFactory.h"
 #include "Framework/EventGen/EventRecord.h"
@@ -130,18 +131,22 @@
 #include "Framework/Utils/AppInit.h"
 #include "Framework/Utils/RunOpt.h"
 #include "Framework/Utils/CmdLnArgParser.h"
+#include "Framework/Conventions/Units.h"
 
 using std::string;
 using std::vector;
 using std::ostringstream;
 
 using namespace genie;
+//using namespace genie::geometry;
 
 // function prototypes
 void  GetCommandLineArgs (int argc, char ** argv);
 void  PrintSyntax        (void);
 void  InitBoundingBox    (void);
 TLorentzVector GeneratePosition(void);
+std::vector<TGeoNode const*> FindVolumes(std::string name, TGeoManager* mg);
+bool AddVolumes(std::string name, std::vector<const TGeoNode*>& nodes);
 const EventRecordVisitorI * NHLGenerator(void);
 
 //
@@ -161,6 +166,7 @@ bool             gOptUsingRootGeom  = false;               // using root geom or
 string           gOptRootGeom;                             // input ROOT file with realistic detector geometry
 string           gOptRootGeomTopVol = "";                  // input geometry top event generation volume
 double           gOptGeomLUnits     = 0;                   // input geometry length units
+bool             gOptGeomDuneHPTPC  = false;               // Special option for DUNE MPD
 long int         gOptRanSeed        = -1;                  // random number seed
 string           gOptFlux;                                 //
 bool             gOptUsingFlux;                            //
@@ -297,8 +303,7 @@ void InitBoundingBox(void)
 
   bool geom_is_accessible = ! (gSystem->AccessPathName(gOptRootGeom.c_str()));
   if (!geom_is_accessible) {
-    LOG("gevgen_nhl", pFATAL)
-      << "The specified ROOT geometry doesn't exist! Initialization failed!";
+    LOG("gevgen_nhl", pFATAL) << "The specified ROOT geometry doesn't exist! Initialization failed!";
     exit(1);
   }
 
@@ -315,15 +320,41 @@ void InitBoundingBox(void)
   foy = origin[1];
   foz = origin[2];
 
-  top_volume->Dump();
+  //top_volume->Dump();
+
+  if(gOptGeomDuneHPTPC){
+    fox = 0;
+    foy = 0;
+    foz = 0;
+    std::vector<TGeoNode const*> nodes = FindVolumes(gOptRootGeomTopVol.c_str(), gm);
+    if(nodes.size() == 0){
+      LOG("gevgen_nhl", pFATAL) << "Can't find geometry volume " << gOptRootGeomTopVol.c_str() << ". Empty nodes vector.";
+      exit(1);
+    }
+
+    const TGeoNode *geomnode = nodes.at(nodes.size()-1);
+    if(geomnode == NULL) {
+      LOG("gevgen_nhl", pFATAL) << "Can't find geometry volume " << gOptRootGeomTopVol.c_str() << ". NULL pointer.";
+      exit(1);
+    }
+
+    for(unsigned int i = 0; i < nodes.size(); ++i){
+      const TGeoNode *node = nodes.at(i);
+      const double *torigin = node->GetMatrix()->GetTranslation();
+      foz += torigin[2];
+      foy += torigin[1];
+      fox += torigin[0];
+    }
+  }
 
   // Convert from local to SI units
-  //fdx *= gOptGeomLUnits;
-  //fdy *= gOptGeomLUnits;
-  //fdz *= gOptGeomLUnits;
-  //fox *= gOptGeomLUnits;
-  //foy *= gOptGeomLUnits;
-  //foz *= gOptGeomLUnits;
+  double lengthScale = gOptGeomLUnits/units::meter;
+  fdx *= lengthScale;
+  fdy *= lengthScale;
+  fdz *= lengthScale;
+  fox *= lengthScale;
+  foy *= lengthScale;
+  foz *= lengthScale;
 
   LOG("gevgen_nhl", pINFO) << "Volume " << top_volume->GetName() << " origin X-Y-Z: " << fox  <<  "-" << foy   << "-" << foz;
   LOG("gevgen_nhl", pINFO) << "Volume " << top_volume->GetName() << " length X-Y-Z: " << 2*fdx << "-" << 2*fdy << "-" << 2*fdz;
@@ -346,6 +377,31 @@ TLorentzVector GeneratePosition(void)
 
   TLorentzVector pos(x_gen, y_gen, z_gen, t_gen);
   return pos;
+}
+//_________________________________________________________________________________________
+std::vector<TGeoNode const*> FindVolumes(std::string name, TGeoManager* mg)
+{
+  std::vector<TGeoNode const*> nodes = { mg->GetTopNode() };
+  if (!AddVolumes(name, nodes)) nodes.clear();
+
+  return nodes;
+}
+//_________________________________________________________________________________________
+bool AddVolumes(std::string name, std::vector<const TGeoNode*>& nodes)
+{
+  assert(!nodes.empty());
+  const TGeoNode* thisnode = nodes.back();
+  const TGeoVolume* thisVolume = thisnode->GetVolume();
+
+  if (strncmp(name.c_str(), thisVolume->GetName(), name.length()) == 0)
+    return true;
+
+  for(int i = 0; i < thisVolume->GetNdaughters(); ++i) {
+    nodes.push_back(thisVolume->GetNode(i));
+    if(AddVolumes(name, nodes)) return true;
+    nodes.pop_back();
+  }
+  return false;
 }
 //_________________________________________________________________________________________
 const EventRecordVisitorI * NHLGenerator(void)
@@ -489,37 +545,42 @@ void GetCommandLineArgs(int argc, char ** argv)
   } //-g
 
   if(gOptUsingRootGeom) {
-     // using a ROOT/HTML geometry - get requested geometry units
-     // legth units:
-     if( parser.OptionExists('L') ) {
-        LOG("gevgen_nhl", pDEBUG)
-           << "Checking for input geometry length units";
-        lunits = parser.ArgAsString('L');
-     } else {
-        LOG("gevgen_nhl", pDEBUG) << "Using default geometry length units";
-        lunits = kDefOptGeomLUnits;
-     } // -L
-     // // density units:
-     // if( parser.OptionExists('D') ) {
-     //    LOG("gevgen_nhl", pDEBUG)
-     //       << "Checking for input geometry density units";
-     //    dunits = parser.ArgAsString('D');
-     // } else {
-     //    LOG("gevgen_nhl", pDEBUG) << "Using default geometry density units";
-     //    dunits = kDefOptGeomDUnits;
-     // } // -D
-     gOptGeomLUnits = utils::units::UnitFromString(lunits);
-     // gOptGeomDUnits = utils::units::UnitFromString(dunits);
+    // using a ROOT/HTML geometry - get requested geometry units
+    // legth units:
+    if( parser.OptionExists('L') ) {
+      LOG("gevgen_nhl", pDEBUG)
+	<< "Checking for input geometry length units";
+      lunits = parser.ArgAsString('L');
+    } else {
+      LOG("gevgen_nhl", pDEBUG) << "Using default geometry length units";
+      lunits = kDefOptGeomLUnits;
+    } // -L
 
-     // check whether an event generation volume name has been
-     // specified -- default is the 'top volume'
-     if( parser.OptionExists('t') ) {
-        LOG("gevgen_nhl", pDEBUG) << "Checking for input volume name";
-        gOptRootGeomTopVol = parser.ArgAsString('t');
-     } else {
-        LOG("gevgen_nhl", pDEBUG) << "Using the <master volume>";
-     } // -t
+    // // density units:
+    // if( parser.OptionExists('D') ) {
+    //    LOG("gevgen_nhl", pDEBUG)
+    //       << "Checking for input geometry density units";
+    //    dunits = parser.ArgAsString('D');
+    // } else {
+    //    LOG("gevgen_nhl", pDEBUG) << "Using default geometry density units";
+    //    dunits = kDefOptGeomDUnits;
+    // } // -D
+    gOptGeomLUnits = utils::units::UnitFromString(lunits);
+    // gOptGeomDUnits = utils::units::UnitFromString(dunits);
 
+    // Check whether an event generation volume name has been specified -- default is the 'top volume'
+    if( parser.OptionExists('t') ) {
+      LOG("gevgen_nhl", pDEBUG) << "Checking for input volume name";
+      gOptRootGeomTopVol = parser.ArgAsString('t');
+    } else {
+      LOG("gevgen_nhl", pDEBUG) << "Using the <master volume>";
+    } // -t
+    
+    // Check
+    if( parser.OptionExists("dunempd") ) {
+      LOG("gevgen_nhl", pDEBUG) << "Special DUNE MPD geometry configuration enabled";
+      gOptGeomDuneHPTPC = true;
+    }
   } // using root geom?
 
   // event file prefix
@@ -581,6 +642,7 @@ void PrintSyntax(void)
    << "\n            [-g geometry]"
    << "\n            [-t top_volume_name_at_geom]"
    << "\n            [-L length_units_at_geom]"
+   << "\n            [--dunempd]"
    << "\n             -n n_of_events "
    << "\n            [-o output_event_file_prefix]"
    << "\n            [--seed random_number_seed]"
