@@ -26,18 +26,7 @@ namespace genie {
  typedef enum ENHLDecayMode {
 
    kNHLDcyNull = 0,
-
-   //
-   // Add enumerations for each decay channel
-   // Start eacg enum with kNHLDcy...
-   // See $GENIE/src/Physics/NucleonDecay/NucleonDecayMode.h for a similar code
-   //
-   //
-   // ...
-   // ...
-   // ...
-
-   kNHLDcEENu = 1 ,
+   kNHLDcEENu,
    kNHLDcMuENu,
    kNHLDcEMuNu,
    kNHLDcMuMuNu,
@@ -46,7 +35,6 @@ namespace genie {
    kNHLDcKE, 
    kNHLDcKMu, 
    kNHLDcPi0Nu,
-   // new : 
    kNHLDcRho0Nu,
    kNHLDcRhoE, 
    kNHLDcOmegaNu, 
@@ -55,9 +43,11 @@ namespace genie {
    kNHLDcTauENu, 
    kNHLDcDE,
    kNHLDcTauMuNu, 
-   kNHLDcPiTau
+   kNHLDcPiTau,
+   kNHLNDecayModes
 
  } NHLDecayMode_t;
 
 }
+
 #endif

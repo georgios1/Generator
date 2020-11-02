@@ -24,12 +24,8 @@ string genie::utils::nhl::AsString(NHLDecayMode_t nhldm)
     return "Invalid NHL decay mode!";
     break;
 
-// add all other cases and specify a string for the decay channel
-//
-//
   case(kNHLDcEENu):
   return "N -> nu e+ e-";
-  std::cout<< " checks "<<std::endl ;
 
   case(kNHLDcMuENu):
   return "N -> nu e+ mu- ";
@@ -54,8 +50,6 @@ string genie::utils::nhl::AsString(NHLDecayMode_t nhldm)
   
   case(kNHLDcPi0Nu):
   return "N -> nu Pi0";
-
-// New part 
 
   case(kNHLDcRho0Nu):
   return "N -> nu Rho0" ; 
@@ -131,6 +125,7 @@ PDGCodeList genie::utils::nhl::DecayProductList(NHLDecayMode_t nhldm)
   //     decay_products.push_back(... some other particle PDG code);
   //     break;
   //
+
   case(kNHLDcEENu):
     decay_products.push_back(kPdgNuE);
     decay_products.push_back(kPdgPositron);
@@ -153,7 +148,6 @@ PDGCodeList genie::utils::nhl::DecayProductList(NHLDecayMode_t nhldm)
     decay_products.push_back(kPdgAntiMuon);
     decay_products.push_back(kPdgMuon);
     break ;
-
   
   case(kNHLDcPiE): 
     decay_products.push_back(kPdgPiP);
