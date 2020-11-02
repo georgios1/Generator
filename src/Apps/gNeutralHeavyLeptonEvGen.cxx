@@ -281,7 +281,8 @@ int main(int argc, char ** argv)
   // Save the generated event tree & close the output file
   ntpw.Save();
 
-  delete spectrum;
+  if(spectrum)
+    delete spectrum;
 
   LOG("gevgen_nhl", pNOTICE) << "Done!";
 
